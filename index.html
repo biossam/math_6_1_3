@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>소수 나눗셈 MASTER</title>
+
+<style>
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:Arial;
+  background:#f8fafc;
+  padding:16px;
+}
+
+.app{
+  max-width:900px;
+  margin:auto;
+  background:white;
+  border-radius:20px;
+  border:4px solid #facc15;
+  overflow:hidden;
+}
+
+.header{
+  background:#facc15;
+  padding:20px;
+  display:flex;
+  justify-content:space-between;
+  font-weight:bold;
+}
+
+.content{padding:20px;}
+
+.btn{
+  padding:14px 20px;
+  border:none;
+  border-radius:14px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.btn-blue{background:#2563eb;color:white;}
+.btn-dark{background:#1e293b;color:white;width:100%;margin-top:10px;}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:10px;
+  margin-bottom:20px;
+}
+
+.ball{
+  width:40px;height:40px;
+  border-radius:50%;
+  border:2px solid black;
+  background:#e5e7eb;
+}
+
+.active{background:#facc15;}
+.win{background:#ef4444;}
+.lose{background:#9ca3af;}
+
+.question{
+  font-size:32px;
+  text-align:center;
+  margin:30px 0;
+  font-weight:bold;
+}
+
+input{
+  width:100%;
+  padding:15px;
+  font-size:24px;
+  text-align:center;
+  border-radius:10px;
+  border:3px solid #ddd;
+}
+
+.feedback{
+  text-align:center;
+  font-weight:bold;
+  margin-top:10px;
+}
+.correct{color:green;}
+.wrong{color:red;}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+  <div class="header">
+    <div>소수 나눗셈 MASTER</div>
+    <div id="score">0 / 30</div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<script>
+let state = {
+  stage:0,
+  score:0,
+  mode:"menu",
+  problem:null,
+  answer:"",
+  feedback:"",
+  results:{}
+};
+
+function makeProblem(level){
+  let a,b,ans;
+
+  if(level==="easy"){
+    b=Math.floor(Math.random()*5)+2;
+    ans=(Math.floor(Math.random()*9)+1)/10;
+  }else if(level==="hard"){
+    b=Math.floor(Math.random()*10)+10;
+    ans=(Math.floor(Math.random()*50)+1)/100;
+  }else{
+    b=Math.floor(Math.random()*8)+2;
+    ans=(Math.floor(Math.random()*20)+10)/10;
+  }
+
+  a=(ans*b).toFixed(2);
+
+  return {q:`${a} ÷ ${b}`, a:ans.toString()};
+}
+
+function start(){
+  state.mode="play";
+  state.stage=0;
+  state.score=0;
+  state.results={};
+  state.problem=makeProblem("normal");
+  render();
+}
+
+function check(){
+  let correct = parseFloat(state.answer)===parseFloat(state.problem.a);
+
+  if(correct){
+    state.score++;
+    state.feedback="정답!";
+    state.results[state.stage]="win";
+  }else{
+    state.feedback="틀림! 답: "+state.problem.a;
+    state.results[state.stage]="lose";
+  }
+
+  render();
+
+  setTimeout(()=>{
+    state.feedback="";
+    state.answer="";
+    state.stage++;
+
+    if(state.stage>=30){
+      state.mode="end";
+    }else{
+      state.problem=makeProblem("normal");
+    }
+    render();
+  },1000);
+}
+
+function grid(){
+  let html="<div class='grid'>";
+  for(let i=0;i<30;i++){
+    let cls="ball";
+    if(state.results[i]==="win") cls+=" win";
+    if(state.results[i]==="lose") cls+=" lose";
+    if(i===state.stage && state.mode==="play") cls+=" active";
+    html+=`<div class="${cls}"></div>`;
+  }
+  html+="</div>";
+  return html;
+}
+
+function render(){
+  document.getElementById("score").innerText = state.score+" / 30";
+  let c=document.getElementById("content");
+
+  if(state.mode==="menu"){
+    c.innerHTML=`
+      <h2>도전! 소수 나눗셈 30</h2>
+      <p>30문제를 풀어보세요!</p>
+      <button class="btn btn-blue" onclick="start()">시작하기</button>
+    `;
+  }
+
+  if(state.mode==="play"){
+    c.innerHTML=`
+      ${grid()}
+      <div class="question">${state.problem.q}</div>
+      <input id="input">
+      <button class="btn btn-dark" onclick="check()">제출</button>
+      <div class="feedback">${state.feedback}</div>
+    `;
+
+    let input=document.getElementById("input");
+    input.focus();
+
+    input.oninput = e=>state.answer=e.target.value;
+    input.onkeydown = e=>{ if(e.key==="Enter") check(); };
+  }
+
+  if(state.mode==="end"){
+    c.innerHTML=`
+      <h2>끝!</h2>
+      <p>${state.score}점</p>
+      <button class="btn btn-blue" onclick="start()">다시하기</button>
+    `;
+  }
+}
+
+render();
+</script>
+
+</body>
+</html>
