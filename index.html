@@ -1,325 +1,910 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Trophy, ChevronRight, RotateCcw, Star, AlertCircle, CheckCircle2, LayoutGrid, ListChecks } from 'lucide-react';
-
-const App = () => {
-  // --- 앱 상태 관리 ---
-  const [gameState, setGameState] = useState('menu'); // 'menu', 'playing', 'review', 'result'
-  const [currentStage, setCurrentStage] = useState(0);
-  const [score, setScore] = useState(0);
-  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0);
-  const [wrongQuestions, setWrongQuestions] = useState([]);
-  const [completedStages, setCompletedStages] = useState({}); // stageIndex: { status: 'win'|'lose', level: 'basic'|'normal'|'advanced' }
-  const [userInput, setUserInput] = useState('');
-  const [feedback, setFeedback] = useState(null); // { type: 'correct' | 'wrong', message: string }
-
-  // --- 문제 생성 로직 (2022 개정 교육과정 기준) ---
-  // 난이도별 숫자 생성 규칙
-  const generateProblem = (index, level) => {
-    let num1, num2, answer;
-    
-    if (level === 'basic') {
-      // 기초: 나누어 떨어지는 간단한 소수 (한 자리 소수 / 자연수)
-      num2 = Math.floor(Math.random() * 5) + 2; // 2~6
-      answer = (Math.floor(Math.random() * 9) + 1) / 10; // 0.1 ~ 0.9
-      num1 = parseFloat((answer * num2).toFixed(2));
-    } else if (level === 'advanced') {
-      // 심화: 소수점 아래 0을 내려 계산하거나 몫이 아주 작은 경우 (두 자리 소수 / 자연수)
-      num2 = Math.floor(Math.random() * 12) + 11; // 11~22
-      answer = (Math.floor(Math.random() * 50) + 1) / 100; // 0.01 ~ 0.50
-      num1 = parseFloat((answer * num2).toFixed(3));
-    } else {
-      // 보통: 일반적인 소수 / 자연수 (몫이 1보다 큰 경우 포함)
-      num2 = Math.floor(Math.random() * 8) + 2; // 2~9
-      answer = (Math.floor(Math.random() * 20) + 11) / 10; // 1.1 ~ 3.0
-      num1 = parseFloat((answer * num2).toFixed(2));
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>소수 나눗셈 MASTER</title>
+  <style>
+    * {
+      box-sizing: border-box;
     }
 
-    return {
-      id: index,
-      num1,
-      num2,
-      answer: answer.toString(),
-      level,
-      question: `${num1} ÷ ${num2} = ?`
-    };
-  };
-
-  // 현재 스테이지에 적합한 난이도 결정
-  const currentLevel = useMemo(() => {
-    if (consecutiveCorrect >= 2) return 'advanced';
-    if (consecutiveCorrect < 0) return 'basic';
-    return 'normal';
-  }, [consecutiveCorrect]);
-
-  const [currentProblem, setCurrentProblem] = useState(() => generateProblem(0, 'normal'));
-
-  // --- 핸들러 ---
-  const startApp = () => {
-    setGameState('playing');
-    setCurrentStage(0);
-    setScore(0);
-    setConsecutiveCorrect(0);
-    setWrongQuestions([]);
-    setCompletedStages({});
-    setCurrentProblem(generateProblem(0, 'normal'));
-  };
-
-  const handleAnswer = () => {
-    const isCorrect = parseFloat(userInput) === parseFloat(currentProblem.answer);
-    
-    if (isCorrect) {
-      setFeedback({ type: 'correct', message: '굉장해! 정답이야!' });
-      setScore(s => s + 1);
-      setConsecutiveCorrect(c => Math.max(c + 1, 1));
-      setCompletedStages(prev => ({
-        ...prev,
-        [currentStage]: { status: 'win', level: currentProblem.level }
-      }));
-    } else {
-      setFeedback({ type: 'wrong', message: `아쉬워! 정답은 ${currentProblem.answer}였어.` });
-      setConsecutiveCorrect(c => Math.min(c - 1, -1));
-      setWrongQuestions(prev => [...prev, { ...currentProblem, userAns: userInput }]);
-      setCompletedStages(prev => ({
-        ...prev,
-        [currentStage]: { status: 'lose', level: currentProblem.level }
-      }));
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Noto Sans KR", Arial, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 16px;
     }
 
-    setTimeout(() => {
-      setFeedback(null);
-      setUserInput('');
-      if (currentStage < 29) {
-        const nextStage = currentStage + 1;
-        setCurrentStage(nextStage);
-        // 다음 문제 난이도 결정 로직 적용
-        const nextLevel = isCorrect ? (consecutiveCorrect >= 1 ? 'advanced' : 'normal') : 'basic';
-        setCurrentProblem(generateProblem(nextStage, nextLevel));
-      } else {
-        setGameState('result');
+    .app {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 24px;
+      overflow: hidden;
+      border: 4px solid #facc15;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+    }
+
+    .header {
+      background: #facc15;
+      padding: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .star-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+
+    .title {
+      font-size: 28px;
+      font-weight: 900;
+      color: #1e3a8a;
+      margin: 0;
+    }
+
+    .score-box {
+      background: #1e3a8a;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .menu-wrap, .result-wrap {
+      padding: 40px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .big-ball {
+      width: 132px;
+      height: 132px;
+      border-radius: 50%;
+      border: 4px solid #000;
+      background: linear-gradient(to bottom, #ef4444 0 50%, #fff 50% 100%);
+      position: relative;
+      animation: pulse 1.3s infinite;
+    }
+
+    .big-ball::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 6px;
+      background: #000;
+      transform: translateY(-50%);
+    }
+
+    .big-ball::after {
+      content: "";
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 4px solid #000;
+      background: #fff;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    .subtitle {
+      color: #64748b;
+      line-height: 1.6;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 18px;
+      padding: 16px 28px;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff;
+    }
+
+    .btn-dark {
+      background: #1e293b;
+      color: #fff;
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .btn-red {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .btn-gray {
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    .progress-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      background: #f1f5f9;
+      border-radius: 20px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (min-width: 700px) {
+      .progress-grid {
+        grid-template-columns: repeat(10, 1fr);
       }
-    }, 1500);
-  };
-
-  const startReview = () => {
-    if (wrongQuestions.length === 0) return;
-    setGameState('review');
-    setCurrentStage(0);
-  };
-
-  // --- 컴포넌트 ---
-  const PokeBall = ({ index, status, level }) => {
-    const isActive = index === currentStage && gameState === 'playing';
-    const isCompleted = status !== undefined;
-    
-    let bgColor = 'bg-gray-200';
-    if (isCompleted) {
-      bgColor = status === 'win' ? 'bg-red-500' : 'bg-gray-400';
     }
-    if (isActive) bgColor = 'bg-yellow-400 animate-bounce';
 
-    return (
-      <div className="flex flex-col items-center gap-1">
-        <div 
-          className={`w-10 h-10 rounded-full border-2 border-black relative overflow-hidden transition-all duration-300 ${bgColor} ${isCompleted ? 'shadow-inner' : 'shadow-md'}`}
-        >
-          <div className="absolute top-0 w-full h-1/2 bg-white/20"></div>
-          <div className="absolute top-1/2 w-full h-0.5 bg-black"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white border border-black rounded-full z-10"></div>
-        </div>
-        <span className="text-[10px] font-bold text-gray-600">{index + 1}</span>
+    .ball-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .mini-ball {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid #000;
+      position: relative;
+      overflow: hidden;
+      background: #e5e7eb;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+    }
+
+    .mini-ball::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 2px;
+      background: #000;
+      transform: translateY(-50%);
+    }
+
+    .mini-ball::after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid #000;
+      background: #fff;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+    }
+
+    .ball-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748b;
+    }
+
+    .active {
+      background: #facc15 !important;
+      animation: bounce 0.8s infinite;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-4px); }
+    }
+
+    .win {
+      background: #ef4444 !important;
+    }
+
+    .lose {
+      background: #9ca3af !important;
+    }
+
+    .problem-card {
+      border: 4px solid #e2e8f0;
+      border-radius: 24px;
+      padding: 32px 20px;
+      position: relative;
+      text-align: center;
+      background: #fff;
+    }
+
+    .level-badge {
+      position: absolute;
+      top: 0;
+      right: 0;
+      padding: 10px 18px;
+      border-bottom-left-radius: 18px;
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .level-basic {
+      background: #22c55e;
+    }
+
+    .level-normal {
+      background: #3b82f6;
+    }
+
+    .level-advanced {
+      background: #a855f7;
+    }
+
+    .question {
+      font-size: 38px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      margin: 40px 0 28px;
+      word-break: keep-all;
+    }
+
+    .answer-area {
+      max-width: 360px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .answer-input {
+      width: 100%;
+      padding: 18px;
+      text-align: center;
+      font-size: 30px;
+      font-weight: 800;
+      border-radius: 18px;
+      border: 4px solid #e2e8f0;
+      outline: none;
+      background: #f8fafc;
+    }
+
+    .answer-input:focus {
+      border-color: #3b82f6;
+    }
+
+    .feedback {
+      margin-top: 18px;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .feedback.correct {
+      color: #16a34a;
+    }
+
+    .feedback.wrong {
+      color: #dc2626;
+    }
+
+    .result-badge {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: #fef9c3;
+      border: 8px solid #facc15;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 72px;
+      box-shadow: 0 16px 30px rgba(0,0,0,0.12);
+    }
+
+    .result-title {
+      font-size: 40px;
+      font-weight: 900;
+      margin: 0;
+    }
+
+    .result-sub {
+      font-size: 22px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+
+    .stat-row {
+      margin-top: 18px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      padding: 12px 18px;
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .stat-blue {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .stat-red {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .review-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .review-title {
+      font-size: 28px;
+      font-weight: 900;
+      margin: 0;
+    }
+
+    .review-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .review-item {
+      background: #f8fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .review-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .review-q {
+      font-size: 28px;
+      font-weight: 900;
+      color: #334155;
+    }
+
+    .small-red-ball {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 2px solid #000;
+      background: #ef4444;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .small-red-ball::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 2px;
+      background: #000;
+      transform: translateY(-50%);
+    }
+
+    .small-red-ball::after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid #000;
+      background: #fff;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .answer-boxes {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .ans-box {
+      border-radius: 14px;
+      padding: 10px 14px;
+      min-width: 90px;
+    }
+
+    .my-answer {
+      background: #fff;
+      border: 1px solid #fecaca;
+    }
+
+    .correct-answer {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+    }
+
+    .ans-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .my-answer .ans-label {
+      color: #ef4444;
+    }
+
+    .correct-answer .ans-label {
+      color: #16a34a;
+    }
+
+    .ans-value {
+      font-size: 20px;
+      font-weight: 800;
+    }
+
+    .strike {
+      text-decoration: line-through;
+      color: #94a3b8;
+    }
+
+    .green {
+      color: #15803d;
+    }
+
+    .footer {
+      background: #f8fafc;
+      border-top: 2px solid #f1f5f9;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      gap: 26px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      font-weight: 800;
+      color: #94a3b8;
+      letter-spacing: 1px;
+    }
+
+    .footer span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .dot-green { background: #22c55e; }
+    .dot-blue { background: #3b82f6; }
+    .dot-purple { background: #a855f7; }
+
+    .copyright {
+      text-align: center;
+      margin-top: 20px;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    @media (max-width: 640px) {
+      .title {
+        font-size: 22px;
+      }
+
+      .question {
+        font-size: 28px;
+      }
+
+      .review-q {
+        font-size: 22px;
+      }
+
+      .result-title {
+        font-size: 30px;
+      }
+
+      .result-sub {
+        font-size: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left">
+        <div class="star-box">⭐</div>
+        <h1 class="title">소수 나눗셈 MASTER</h1>
       </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 p-4 md:p-8 flex flex-col items-center">
-      <div className="max-w-4xl w-full bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-yellow-400">
-        
-        {/* Header */}
-        <div className="bg-yellow-400 p-6 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-md">
-              <Star className="text-yellow-500 fill-yellow-500" />
-            </div>
-            <h1 className="text-2xl font-black text-blue-800 tracking-tight">소수 나눗셈 MASTER</h1>
-          </div>
-          <div className="bg-blue-800 text-white px-4 py-2 rounded-full font-bold flex items-center gap-2">
-            <Trophy size={18} />
-            <span>{score} / 30</span>
-          </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="p-6">
-          
-          {gameState === 'menu' && (
-            <div className="py-12 flex flex-col items-center text-center gap-6">
-              <div className="relative">
-                <div className="w-32 h-32 bg-red-500 rounded-full border-4 border-black relative overflow-hidden animate-pulse">
-                  <div className="absolute top-1/2 w-full h-2 bg-black -translate-y-1/2"></div>
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white border-4 border-black rounded-full z-10"></div>
-                </div>
-              </div>
-              <div>
-                <h2 className="text-3xl font-bold mb-2">도전! 소수 나눗셈 30</h2>
-                <p className="text-slate-500">포켓몬 볼 속에 숨겨진 30개의 문제를 해결하고<br/>수학 마스터가 되어보세요!</p>
-              </div>
-              <button 
-                onClick={startApp}
-                className="group flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-2xl text-xl font-black transition-all transform hover:scale-105 shadow-lg"
-              >
-                모험 시작하기
-                <ChevronRight className="group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
-          )}
-
-          {gameState === 'playing' && (
-            <div className="space-y-8">
-              {/* Progress Grid */}
-              <div className="grid grid-cols-6 sm:grid-cols-10 gap-3 p-4 bg-slate-100 rounded-2xl">
-                {[...Array(30)].map((_, i) => (
-                  <PokeBall 
-                    key={i} 
-                    index={i} 
-                    status={completedStages[i]?.status} 
-                    level={completedStages[i]?.level}
-                  />
-                ))}
-              </div>
-
-              {/* Problem Card */}
-              <div className="bg-white border-4 border-slate-200 rounded-3xl p-8 relative overflow-hidden">
-                <div className={`absolute top-0 right-0 px-6 py-2 rounded-bl-2xl font-bold text-sm ${
-                  currentProblem.level === 'advanced' ? 'bg-purple-500 text-white' : 
-                  currentProblem.level === 'basic' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
-                }`}>
-                  난이도: {currentProblem.level === 'advanced' ? '심화' : currentProblem.level === 'basic' ? '기초' : '보통'}
-                </div>
-
-                <div className="flex flex-col items-center gap-8">
-                  <div className="text-5xl font-black text-slate-800 tracking-widest">
-                    {currentProblem.question}
-                  </div>
-
-                  <div className="w-full max-w-sm relative">
-                    <input 
-                      type="number"
-                      step="0.01"
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAnswer()}
-                      placeholder="정답 입력..."
-                      className="w-full text-center text-3xl font-bold py-4 px-6 bg-slate-50 border-4 border-slate-200 rounded-2xl focus:border-blue-500 focus:outline-none transition-colors"
-                      autoFocus
-                    />
-                    {feedback && (
-                      <div className={`absolute -bottom-16 left-0 right-0 text-center font-bold text-xl animate-bounce ${
-                        feedback.type === 'correct' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {feedback.type === 'correct' ? <CheckCircle2 className="inline mr-2" /> : <AlertCircle className="inline mr-2" />}
-                        {feedback.message}
-                      </div>
-                    )}
-                  </div>
-
-                  <button 
-                    onClick={handleAnswer}
-                    disabled={!userInput || feedback}
-                    className="w-full max-w-sm bg-slate-800 text-white py-4 rounded-2xl font-black text-xl hover:bg-slate-900 disabled:opacity-50 transition-all shadow-lg active:scale-95"
-                  >
-                    제출하기
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {gameState === 'result' && (
-            <div className="py-8 flex flex-col items-center text-center gap-8">
-              <div className="w-48 h-48 bg-yellow-100 rounded-full flex items-center justify-center border-8 border-yellow-400 shadow-xl">
-                <Trophy size={80} className="text-yellow-500" />
-              </div>
-              
-              <div>
-                <h2 className="text-4xl font-black text-slate-800 mb-2">모험 종료!</h2>
-                <p className="text-xl text-slate-500 font-medium">당신은 소수 나눗셈 {score >= 25 ? '마스터' : '베테랑'}입니다!</p>
-                <div className="mt-4 flex gap-4 justify-center">
-                  <div className="bg-blue-100 text-blue-700 px-6 py-2 rounded-xl font-bold">맞힌 문제: {score}</div>
-                  <div className="bg-red-100 text-red-700 px-6 py-2 rounded-xl font-bold">틀린 문제: {wrongQuestions.length}</div>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap justify-center gap-4 w-full">
-                <button 
-                  onClick={startApp}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-8 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-md"
-                >
-                  <RotateCcw size={20} />
-                  처음부터 다시하기
-                </button>
-                {wrongQuestions.length > 0 && (
-                  <button 
-                    onClick={startReview}
-                    className="flex items-center gap-2 bg-red-500 text-white px-8 py-4 rounded-2xl font-bold hover:bg-red-600 transition-all shadow-md"
-                  >
-                    <ListChecks size={20} />
-                    오답 포켓몬 볼 열기 ({wrongQuestions.length})
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {gameState === 'review' && (
-            <div className="space-y-6">
-               <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <RotateCcw className="text-red-500" />
-                  오답 복습하기
-                </h2>
-                <button onClick={() => setGameState('result')} className="text-slate-500 hover:text-slate-800 font-bold">돌아가기</button>
-              </div>
-
-              <div className="grid gap-4">
-                {wrongQuestions.map((q, idx) => (
-                  <div key={idx} className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-red-500 rounded-full border-2 border-black relative overflow-hidden shrink-0">
-                         <div className="absolute top-1/2 w-full h-0.5 bg-black"></div>
-                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-white border border-black rounded-full z-10"></div>
-                      </div>
-                      <div className="text-2xl font-black text-slate-700">{q.question}</div>
-                    </div>
-                    <div className="flex gap-4">
-                      <div className="bg-white px-4 py-2 rounded-xl border border-red-200">
-                        <span className="text-xs text-red-500 font-bold block">내 입력</span>
-                        <span className="text-lg font-bold text-slate-400 line-through">{q.userAns}</span>
-                      </div>
-                      <div className="bg-green-50 px-4 py-2 rounded-xl border border-green-200">
-                        <span className="text-xs text-green-600 font-bold block">정답</span>
-                        <span className="text-lg font-bold text-green-700">{q.answer}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-        </div>
-
-        {/* Footer Info */}
-        <div className="bg-slate-50 border-t-2 border-slate-100 p-4 flex justify-center gap-8 text-xs font-bold text-slate-400 uppercase tracking-widest">
-           <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> 기초</div>
-           <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-blue-500"></div> 보통</div>
-           <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-purple-500"></div> 심화</div>
-        </div>
-      </div>
-      
-      <p className="mt-6 text-slate-400 text-sm font-medium">© 2024 Pokemon Math Master - 2022 개정 교육과정 반영</p>
+      <div class="score-box">🏆 <span id="scoreText">0 / 30</span></div>
     </div>
-  );
-};
 
-export default App;
+    <div class="content" id="content"></div>
+
+    <div class="footer">
+      <span><i class="dot dot-green"></i>기초</span>
+      <span><i class="dot dot-blue"></i>보통</span>
+      <span><i class="dot dot-purple"></i>심화</span>
+    </div>
+  </div>
+
+  <p class="copyright">© 2024 Pokemon Math Master - 2022 개정 교육과정 반영</p>
+
+  <script>
+    const state = {
+      gameState: 'menu', // menu, playing, result, review
+      currentStage: 0,
+      score: 0,
+      consecutiveCorrect: 0,
+      wrongQuestions: [],
+      completedStages: {},
+      userInput: '',
+      feedback: null,
+      currentProblem: null
+    };
+
+    function generateProblem(index, level) {
+      let num1, num2, answer;
+
+      if (level === 'basic') {
+        num2 = Math.floor(Math.random() * 5) + 2; // 2~6
+        answer = (Math.floor(Math.random() * 9) + 1) / 10; // 0.1~0.9
+        num1 = Number((answer * num2).toFixed(2));
+      } else if (level === 'advanced') {
+        num2 = Math.floor(Math.random() * 12) + 11; // 11~22
+        answer = (Math.floor(Math.random() * 50) + 1) / 100; // 0.01~0.50
+        num1 = Number((answer * num2).toFixed(3));
+      } else {
+        num2 = Math.floor(Math.random() * 8) + 2; // 2~9
+        answer = (Math.floor(Math.random() * 20) + 11) / 10; // 1.1~3.0
+        num1 = Number((answer * num2).toFixed(2));
+      }
+
+      return {
+        id: index,
+        num1,
+        num2,
+        answer: answer.toString(),
+        level,
+        question: `${num1} ÷ ${num2} = ?`
+      };
+    }
+
+    function startApp() {
+      state.gameState = 'playing';
+      state.currentStage = 0;
+      state.score = 0;
+      state.consecutiveCorrect = 0;
+      state.wrongQuestions = [];
+      state.completedStages = {};
+      state.userInput = '';
+      state.feedback = null;
+      state.currentProblem = generateProblem(0, 'normal');
+      render();
+    }
+
+    function getLevelText(level) {
+      if (level === 'advanced') return '심화';
+      if (level === 'basic') return '기초';
+      return '보통';
+    }
+
+    function getLevelClass(level) {
+      if (level === 'advanced') return 'level-advanced';
+      if (level === 'basic') return 'level-basic';
+      return 'level-normal';
+    }
+
+    function handleAnswer() {
+      if (!state.userInput || state.feedback) return;
+
+      const isCorrect = parseFloat(state.userInput) === parseFloat(state.currentProblem.answer);
+
+      if (isCorrect) {
+        state.feedback = {
+          type: 'correct',
+          message: '굉장해! 정답이야!'
+        };
+        state.score += 1;
+        state.consecutiveCorrect = Math.max(state.consecutiveCorrect + 1, 1);
+        state.completedStages[state.currentStage] = {
+          status: 'win',
+          level: state.currentProblem.level
+        };
+      } else {
+        state.feedback = {
+          type: 'wrong',
+          message: `아쉬워! 정답은 ${state.currentProblem.answer}였어.`
+        };
+        state.consecutiveCorrect = Math.min(state.consecutiveCorrect - 1, -1);
+        state.wrongQuestions.push({
+          ...state.currentProblem,
+          userAns: state.userInput
+        });
+        state.completedStages[state.currentStage] = {
+          status: 'lose',
+          level: state.currentProblem.level
+        };
+      }
+
+      render();
+
+      setTimeout(() => {
+        state.feedback = null;
+        state.userInput = '';
+
+        if (state.currentStage < 29) {
+          const nextStage = state.currentStage + 1;
+          state.currentStage = nextStage;
+          const nextLevel = isCorrect
+            ? (state.consecutiveCorrect >= 2 ? 'advanced' : 'normal')
+            : 'basic';
+          state.currentProblem = generateProblem(nextStage, nextLevel);
+          state.gameState = 'playing';
+        } else {
+          state.gameState = 'result';
+        }
+
+        render();
+      }, 1500);
+    }
+
+    function startReview() {
+      if (state.wrongQuestions.length === 0) return;
+      state.gameState = 'review';
+      render();
+    }
+
+    function renderProgressGrid() {
+      let html = '<div class="progress-grid">';
+      for (let i = 0; i < 30; i++) {
+        const completed = state.completedStages[i];
+        let cls = 'mini-ball';
+
+        if (completed) {
+          cls += completed.status === 'win' ? ' win' : ' lose';
+        }
+        if (i === state.currentStage && state.gameState === 'playing') {
+          cls += ' active';
+        }
+
+        html += `
+          <div class="ball-wrap">
+            <div class="${cls}"></div>
+            <span class="ball-label">${i + 1}</span>
+          </div>
+        `;
+      }
+      html += '</div>';
+      return html;
+    }
+
+    function renderMenu() {
+      return `
+        <div class="menu-wrap center">
+          <div class="big-ball"></div>
+          <div>
+            <h2 style="font-size:36px; font-weight:900; margin:0 0 10px;">도전! 소수 나눗셈 30</h2>
+            <p class="subtitle">
+              포켓몬 볼 속에 숨겨진 30개의 문제를 해결하고<br>
+              수학 마스터가 되어보세요!
+            </p>
+          </div>
+          <button class="btn btn-primary" onclick="startApp()">모험 시작하기 ➜</button>
+        </div>
+      `;
+    }
+
+    function renderPlaying() {
+      return `
+        ${renderProgressGrid()}
+        <div class="problem-card">
+          <div class="level-badge ${getLevelClass(state.currentProblem.level)}">
+            난이도: ${getLevelText(state.currentProblem.level)}
+          </div>
+
+          <div class="question">${state.currentProblem.question}</div>
+
+          <div class="answer-area">
+            <input
+              id="answerInput"
+              class="answer-input"
+              type="number"
+              step="0.01"
+              placeholder="정답 입력..."
+              value="${state.userInput}"
+            />
+            ${
+              state.feedback
+                ? `<div class="feedback ${state.feedback.type}">
+                    ${state.feedback.type === 'correct' ? '✅' : '❌'} ${state.feedback.message}
+                   </div>`
+                : ''
+            }
+          </div>
+
+          <div style="margin-top:24px;">
+            <button class="btn btn-dark" onclick="handleAnswer()" ${(!state.userInput || state.feedback) ? 'disabled' : ''}>
+              제출하기
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderResult() {
+      return `
+        <div class="result-wrap center">
+          <div class="result-badge">🏆</div>
+          <div>
+            <h2 class="result-title">모험 종료!</h2>
+            <p class="result-sub">당신은 소수 나눗셈 ${state.score >= 25 ? '마스터' : '베테랑'}입니다!</p>
+            <div class="stat-row">
+              <div class="stat stat-blue">맞힌 문제: ${state.score}</div>
+              <div class="stat stat-red">틀린 문제: ${state.wrongQuestions.length}</div>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" onclick="startApp()">처음부터 다시하기</button>
+            ${
+              state.wrongQuestions.length > 0
+                ? `<button class="btn btn-red" onclick="startReview()">오답 포켓몬 볼 열기 (${state.wrongQuestions.length})</button>`
+                : ''
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    function renderReview() {
+      const items = state.wrongQuestions.map(q => `
+        <div class="review-item">
+          <div class="review-left">
+            <div class="small-red-ball"></div>
+            <div class="review-q">${q.question}</div>
+          </div>
+          <div class="answer-boxes">
+            <div class="ans-box my-answer">
+              <span class="ans-label">내 입력</span>
+              <span class="ans-value strike">${q.userAns || '(없음)'}</span>
+            </div>
+            <div class="ans-box correct-answer">
+              <span class="ans-label">정답</span>
+              <span class="ans-value green">${q.answer}</span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      return `
+        <div>
+          <div class="review-top">
+            <h2 class="review-title">🔄 오답 복습하기</h2>
+            <button class="btn btn-gray" onclick="goResult()">돌아가기</button>
+          </div>
+          <div class="review-list">${items}</div>
+        </div>
+      `;
+    }
+
+    function goResult() {
+      state.gameState = 'result';
+      render();
+    }
+
+    function attachInputEvents() {
+      const input = document.getElementById('answerInput');
+      if (!input) return;
+
+      input.focus();
+      input.value = state.userInput || '';
+
+      input.addEventListener('input', (e) => {
+        state.userInput = e.target.value;
+        const submitBtn = document.querySelector('.btn-dark');
+        if (submitBtn) {
+          submitBtn.disabled = !state.userInput || !!state.feedback;
+        }
+      });
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          handleAnswer();
+        }
+      });
+    }
+
+    function render() {
+      document.getElementById('scoreText').textContent = `${state.score} / 30`;
+
+      const content = document.getElementById('content');
+
+      if (state.gameState === 'menu') {
+        content.innerHTML = renderMenu();
+      } else if (state.gameState === 'playing') {
+        content.innerHTML = renderPlaying();
+      } else if (state.gameState === 'result') {
+        content.innerHTML = renderResult();
+      } else if (state.gameState === 'review') {
+        content.innerHTML = renderReview();
+      }
+
+      attachInputEvents();
+    }
+
+    state.currentProblem = generateProblem(0, 'normal');
+    render();
+  </script>
+</body>
+</html>
